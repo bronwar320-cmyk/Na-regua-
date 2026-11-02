@@ -4,9 +4,9 @@
   const whatsappUrl = (message) => `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   const supabaseReady = () =>
     window.supabase?.createClient &&
-    config.supabaseUrl?.startsWith("https://") &&
+    config.supabaseUrl?.startsWith("https://qgpuktvvevkdbegtfpor.supabase.co") &&
     config.supabaseAnonKey &&
-    !config.supabaseAnonKey.startsWith("COLE_AQUI");
+    !config.supabaseAnonKey.startsWith("sb_publishable_QJxkdBzGXx-t2yal3YEOYA_7-yqzEZY");
 
   let db = null;
   if (supabaseReady()) {
