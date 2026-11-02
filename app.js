@@ -2,6 +2,16 @@
   const config = window.BARBER_CONFIG || {};
   const phone = config.whatsapp || "5524998837827";
   const whatsappUrl = (message) => `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const supabaseReady = () =>
+    window.supabase?.createClient &&
+    config.supabaseUrl?.startsWith("https://") &&
+    config.supabaseAnonKey &&
+    !config.supabaseAnonKey.startsWith("COLE_AQUI");
+
+  let db = null;
+  if (supabaseReady()) {
+    db = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+  }
 
   ["whatsHero", "whatsHours", "whatsContact", "whatsFooter"].forEach(id => {
     const link = document.getElementById(id);
@@ -24,27 +34,55 @@
     dateInput.min = localDate;
   }
 
-  document.getElementById("bookingForm")?.addEventListener("submit", event => {
+  document.getElementById("bookingForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const nome = data.get("nome");
-    const telefone = data.get("telefone");
-    const email = data.get("email") || "Não informado";
-    const servico = data.get("servico");
-    const dia = data.get("data");
-    const horario = data.get("horario");
-    const message = [
-      "Olá! Gostaria de solicitar um agendamento na Na Régua Barber Shop.",
-      "",
-      `Nome: ${nome}`,
-      `Meu WhatsApp: ${telefone}`,
-      `E-mail: ${email}`,
-      `Serviço: ${servico}`,
-      `Data desejada: ${dia}`,
-      `Horário desejado: ${horario}`,
-      "",
-      "Aguardo a confirmação. Obrigado!"
-    ].join("\n");
-    window.open(whatsappUrl(message), "_blank", "noopener");
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const booking = {
+      nome: String(data.get("nome") || "").trim(),
+      telefone: String(data.get("telefone") || "").trim(),
+      email: String(data.get("email") || "").trim() || null,
+      servico: String(data.get("servico") || ""),
+      data_desejada: String(data.get("data") || ""),
+      horario_desejado: String(data.get("horario") || ""),
+      status: "pendente"
+    };
+
+    if (!db) {
+      alert("O sistema de agendamento ainda não está conectado ao Supabase. Configure a Project URL e a anon/public key no arquivo config.js.");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Enviando...";
+    try {
+      const { error } = await db.from("agendamentos").insert(booking);
+      if (error) throw error;
+
+      const message = [
+        "Olá! Um novo pedido de agendamento foi registrado no site Na Régua Barber Shop.",
+        "",
+        `Nome: ${booking.nome}`,
+        `WhatsApp: ${booking.telefone}`,
+        `E-mail: ${booking.email || "Não informado"}`,
+        `Serviço: ${booking.servico}`,
+        `Data desejada: ${booking.data_desejada}`,
+        `Horário desejado: ${booking.horario_desejado}`,
+        "Status: Pendente de confirmação",
+        "",
+        "O pedido também foi salvo no painel administrativo."
+      ].join("\n");
+
+      alert("Solicitação registrada! Agora vamos abrir o WhatsApp para você também enviar os dados à barbearia.");
+      window.open(whatsappUrl(message), "_blank", "noopener");
+      form.reset();
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível salvar o agendamento. Confira sua conexão e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Solicitar agendamento ↗";
+    }
   });
 })();
